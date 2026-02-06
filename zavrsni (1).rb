@@ -11,6 +11,8 @@ if File.exist?(TASK_FILE)
     desc, date, status = line.strip.split("|")
     $tasks << [desc, date, status]
   end
+  #sortiranje po datumu (najraniji na vrhu)
+  $tasks.sort_by! { |t| Date.parse(t[1]) rescue Date.new(9999,1,1) }
 end
 
 
@@ -164,11 +166,15 @@ app.signal_connect "activate" do |application|
     end
   end
 
-  $tasks.each do |desc, date, status|
-    iter = store.append
-    iter[0] = desc
-    iter[1] = date
-    iter[2] = status
+  def refresh_store(store)
+    store.clear
+    $tasks.sort_by! { |t| Date.parse(t[1]) rescue Date.new(9999,1,1) }
+    $tasks.each do |desc, date, status|
+      iter = store.append
+      iter[0] = desc
+      iter[1] = date
+      iter[2] = status
+    end
   end
 
   #tablica se stavlja u scroll prozor tako da se moze skrolati ako
@@ -178,6 +184,8 @@ app.signal_connect "activate" do |application|
   scroll.add(tree)
 
   main_box.pack_start(scroll, expand: true, fill: true, padding: 5)
+
+  refresh_store(store)
 
   #gumbovi
   buttons = Gtk::Box.new(:horizontal, 10)#horizontalni raspored
@@ -207,11 +215,6 @@ app.signal_connect "activate" do |application|
     if desc.empty? || date.empty? #provjerava da polja nisu prazna
       show_popup(window, "Ispravno unesite tražene podatke!")
     else
-      # dodavanje u ListStore
-      iter = store.append
-      iter[0] = desc
-      iter[1] = date
-      iter[2] = "🔴 Nedovršeno"
 
       # dodavanje u globalni niz
       $tasks << [desc, date, "🔴 Nedovršeno"]
@@ -220,6 +223,7 @@ app.signal_connect "activate" do |application|
       File.open(TASK_FILE, "a") do |f|
         f.puts("#{$tasks.last.join("|")}")
       end
+      refresh_store(store)
       desc_entry.text = ""
       date_entry.text = ""
     end
