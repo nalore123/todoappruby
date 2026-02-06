@@ -3,6 +3,17 @@ require 'gtk3'
 #globalna prazna lista koja sadrži zadatke
 $tasks = []
 
+TASK_FILE = "tasks.txt"
+
+#učitavanje zadataka iz datoteke pri pokretanju
+if File.exist?(TASK_FILE)
+  File.readlines(TASK_FILE).each do |line|
+    desc, date, status = line.strip.split("|")
+    $tasks << [desc, date, status]
+  end
+end
+
+
 #kreiranje aplikacije
 app = Gtk::Application.new("todo.app", :flags_none)
 
@@ -153,6 +164,13 @@ app.signal_connect "activate" do |application|
     end
   end
 
+  $tasks.each do |desc, date, status|
+    iter = store.append
+    iter[0] = desc
+    iter[1] = date
+    iter[2] = status
+  end
+
   #tablica se stavlja u scroll prozor tako da se moze skrolati ako
   #ima puno zadataka, klizaci se javljaju po potrebi
   scroll = Gtk::ScrolledWindow.new
@@ -189,24 +207,40 @@ app.signal_connect "activate" do |application|
     if desc.empty? || date.empty? #provjerava da polja nisu prazna
       show_popup(window, "Ispravno unesite tražene podatke!")
     else
-      #zadaci se dodaju u tablicu
+      # dodavanje u ListStore
       iter = store.append
       iter[0] = desc
       iter[1] = date
       iter[2] = "🔴 Nedovršeno"
 
+      # dodavanje u globalni niz
+      $tasks << [desc, date, "🔴 Nedovršeno"]
+
+      # zapis u datoteku
+      File.open(TASK_FILE, "a") do |f|
+        f.puts("#{$tasks.last.join("|")}")
+      end
       desc_entry.text = ""
       date_entry.text = ""
     end
   end
 
-  #označavanje zadatka kao dovršenog i onda se automatski briše zadatak
+#označavanje zadatka kao dovršenog i onda se automatski briše zadatak
 done_btn.signal_connect("clicked") do
   selected_iter = tree.selection.selected
   if selected_iter
     #automatski briše zadatak
-    store.remove(selected_iter)
-  else
+     desc, date, status = selected_iter[0], selected_iter[1], selected_iter[2]
+    # uklanjanje iz $tasks
+    $tasks.delete_if { |t| t[0] == desc && t[1] == date && t[2] == status }
+
+    #prepisivanje datoteke
+    File.open(TASK_FILE, "w") do |f|
+      $tasks.each { |t| f.puts(t.join("|")) }
+    end
+      #uklanjanje iz ListStore
+      store.remove(selected_iter)
+    else
     show_popup(window, "Nije odabran nijedan zadatak!")
   end
 end
@@ -215,7 +249,19 @@ end
   delete_btn.signal_connect("clicked") do
     selected_iter = tree.selection.selected
     if selected_iter
-      store.remove(selected_iter)
+      # uzmi podatke iz odabranog reda
+    desc, date, status = selected_iter[0], selected_iter[1], selected_iter[2]
+
+    # ukloni zadatak iz globalnog niza
+    $tasks.delete_if { |t| t[0] == desc && t[1] == date && t[2] == status }
+
+    # prepiši datoteku bez obrisanog zadatka
+    File.open(TASK_FILE, "w") do |f|
+      $tasks.each { |t| f.puts(t.join("|")) }
+    end
+
+    # ukloni iz ListStore (tablice)
+    store.remove(selected_iter)
     else
       show_popup(window, "Nije odabran nijedan zadatak!")
     end
