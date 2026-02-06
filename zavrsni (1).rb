@@ -142,12 +142,26 @@ app.signal_connect "activate" do |application|
 
   main_box.pack_start(form_box, expand: false, fill: false, padding: 5)
 
+  #box za pretragu
+  search_box = Gtk::Box.new(:horizontal, 10)
+  search_entry = Gtk::Entry.new
+  search_entry.placeholder_text = "Pretraži zadatke..."
+  search_box.pack_start(search_entry, expand: true, fill: true, padding: 0)
+
+  #dodavanje search_box u glavni layout ispod forme za unos
+  main_box.pack_start(search_box, expand: false, fill: false, padding: 5)
+
   #tablica za prikaz unesenih zadataka
   store = Gtk::ListStore.new(String, String, String)
 
   tree = Gtk::TreeView.new(store)#widget za prikaz tablica
   tree.selection.mode = :single
-
+  
+  #signal za pretragu
+  search_entry.signal_connect("changed") do
+    filter_text = search_entry.text.strip
+    refresh_store(store, filter_text.empty? ? nil : filter_text)
+  end
   #petlja prolazi kroz nazive stupaca koji se prikazuju u tablici
   ["Opis zadatka", "Rok izvršenja", "Status"].each_with_index do |title, i|
     renderer = Gtk::CellRendererText.new #stupac u tablici, renderer određuje kako seprikazuju podaci
@@ -166,17 +180,18 @@ app.signal_connect "activate" do |application|
     end
   end
 
-  def refresh_store(store)
+  def refresh_store(store, filter = nil)
     store.clear
     $tasks.sort_by! { |t| Date.parse(t[1]) rescue Date.new(9999,1,1) }
+
     $tasks.each do |desc, date, status|
+      next if filter && !desc.downcase.include?(filter.downcase)
       iter = store.append
       iter[0] = desc
       iter[1] = date
       iter[2] = status
     end
   end
-
   #tablica se stavlja u scroll prozor tako da se moze skrolati ako
   #ima puno zadataka, klizaci se javljaju po potrebi
   scroll = Gtk::ScrolledWindow.new
