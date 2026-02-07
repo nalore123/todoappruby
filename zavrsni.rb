@@ -1,5 +1,6 @@
 #učitavanje GTK3 biblioteke za GUI
 require 'gtk3'
+
 #globalna prazna lista koja sadrži zadatke
 $tasks = []
 
@@ -35,7 +36,7 @@ app.signal_connect "activate" do |application|
       parent: parent,
       flags: :destroy_with_parent
     )
-    dialog.add_button("OK", :ok)#dugme za zatvaranje
+    dialog.add_button("OK", :ok)#gumb za zatvaranje
 
     #prozor dijaloga, ima unutarnji prostor za sadrzaj
     content_area = dialog.child  
